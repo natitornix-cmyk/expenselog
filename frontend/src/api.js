@@ -126,8 +126,10 @@ export async function claimMember(memberId) {
     .is('user_id', null)
     .select()
     .single();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('สมาชิกนี้ถูกเชื่อมโยงไปแล้ว');
+  if (error) {
+    if (error.code === 'PGRST116') throw new Error('สมาชิกนี้ถูกเชื่อมโยงบัญชีไปแล้ว');
+    throw new Error(error.message);
+  }
   return data;
 }
 

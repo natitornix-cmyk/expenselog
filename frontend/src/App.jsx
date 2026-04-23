@@ -71,17 +71,17 @@ export default function App() {
 
   const refreshMembers = useCallback(async () => {
     if (!session) return;
-    setMembers(await getMembers());
+    try { setMembers(await getMembers()); } catch {}
   }, [session]);
 
   const refreshExpenses = useCallback(async () => {
     if (!session) return;
-    setExpenses(await getExpenses());
+    try { setExpenses(await getExpenses()); } catch {}
   }, [session]);
 
   const refreshRates = useCallback(async () => {
     if (!session) return;
-    setRates(await getExchangeRates());
+    try { setRates(await getExchangeRates()); } catch {}
   }, [session]);
 
   useEffect(() => {
