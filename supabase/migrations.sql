@@ -158,11 +158,11 @@ CREATE POLICY "members_update" ON members FOR UPDATE TO authenticated
   WITH CHECK (user_id = auth.uid());
 
 -- =====================================================================
--- Fix: expense_flags.member_id FK blocks deleting a member who has flagged
--- Run this block if "ลบบัญชีนี้" fails with expense_flags_member_id_fkey error
+-- Fix: delete flags when the flagging member is deleted
+-- Run this block in Supabase SQL Editor
 -- =====================================================================
 
 ALTER TABLE expense_flags
   DROP CONSTRAINT expense_flags_member_id_fkey,
   ADD CONSTRAINT expense_flags_member_id_fkey
-    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE;
