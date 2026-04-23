@@ -68,6 +68,17 @@ export async function updateMyNickname(nickname) {
   if (error) throw new Error(error.message);
 }
 
+export async function deleteMyAccount(memberId) {
+  const [{ data: inExpenses }, { data: inSplits }] = await Promise.all([
+    supabase.from('expenses').select('id').eq('paid_by', memberId).limit(1),
+    supabase.from('expense_splits').select('id').eq('member_id', memberId).limit(1),
+  ]);
+  if (inExpenses?.length || inSplits?.length)
+    throw new Error('ไม่สามารถลบได้ เพราะมีรายการค่าใช้จ่ายที่เกี่ยวข้องอยู่');
+  const { error } = await supabase.from('members').delete().eq('id', memberId);
+  if (error) throw new Error(error.message);
+}
+
 // ─── Expenses ─────────────────────────────────────────────────────────────────
 
 export async function getExpenses() {
