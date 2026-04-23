@@ -78,8 +78,8 @@ export default function App() {
   }, [isReady, refreshMembers, refreshExpenses, refreshRates]);
 
   const balances = useMemo(
-    () => (members.length > 0 ? calculateBalances(members, expenses) : null),
-    [members, expenses]
+    () => (members.length > 0 ? calculateBalances(members, expenses, rates) : null),
+    [members, expenses, rates]
   );
 
   async function handleSignOut() {

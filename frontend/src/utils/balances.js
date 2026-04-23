@@ -1,11 +1,24 @@
-export function calculateBalances(members, expenses) {
+function toTHB(amount, currency, rates) {
+  if (currency === 'MYR' && rates?.MYR) return amount / rates.MYR;
+  if (currency === 'SGD' && rates?.SGD) return amount / rates.SGD;
+  return amount; // THB or unknown: use as-is
+}
+
+export function calculateBalances(members, expenses, rates = {}) {
   const balance = {};
   for (const m of members) balance[m.id] = 0;
 
+  let hasUnconverted = false;
+
   for (const expense of expenses) {
+    const currency = expense.currency ?? 'THB';
+    if ((currency === 'MYR' && !rates?.MYR) || (currency === 'SGD' && !rates?.SGD)) {
+      hasUnconverted = true;
+    }
     for (const split of expense.splits) {
-      balance[expense.paid_by] += split.amount;
-      balance[split.member_id] -= split.amount;
+      const thb = toTHB(split.amount, currency, rates);
+      balance[expense.paid_by] += thb;
+      balance[split.member_id] -= thb;
     }
   }
 
@@ -41,5 +54,6 @@ export function calculateBalances(members, expenses) {
       net: Math.round(balance[m.id] * 100) / 100,
     })),
     settlements,
+    hasUnconverted,
   };
 }

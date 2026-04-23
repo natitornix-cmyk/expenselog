@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createExpense, updateExpense } from '../api';
+import { CURRENCIES, formatAmount } from '../utils/currency';
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -11,6 +12,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
   const [equalTotal, setEqualTotal] = useState('');
   const [equalSelected, setEqualSelected] = useState(new Set());
   const [customAmounts, setCustomAmounts] = useState({});
+  const [currency, setCurrency] = useState('THB');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +31,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
     setDescription(editingExpense.description);
     setPaidBy(editingExpense.paid_by);
     setNotes(editingExpense.notes ?? '');
+    setCurrency(editingExpense.currency ?? 'THB');
     setSplitType('custom');
     const amounts = {};
     for (const s of editingExpense.splits) amounts[s.member_id] = s.amount;
@@ -78,6 +81,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
     setDescription('');
     setEqualTotal('');
     setNotes('');
+    setCurrency('THB');
     setCustomAmounts({});
     setSplitType('equal');
     if (members.length > 0) {
@@ -92,7 +96,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
     const splits = buildSplits();
     try {
       const paidByName = members.find(m => m.id === paidBy)?.name;
-      const payload = { date, description, paid_by: paidBy, splits, notes, paid_by_name: paidByName, my_name: myName };
+      const payload = { date, description, paid_by: paidBy, splits, notes, currency, paid_by_name: paidByName, my_name: myName };
       if (editingExpense) {
         await updateExpense(editingExpense.id, payload);
       } else {
@@ -145,6 +149,27 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
           />
         </div>
 
+        {/* Currency */}
+        <div>
+          <label className="text-xs text-zinc-500 block mb-2">สกุลเงิน</label>
+          <div className="inline-flex rounded-xl overflow-hidden border border-white/10">
+            {CURRENCIES.map(c => (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => setCurrency(c.code)}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${
+                  currency === c.code
+                    ? 'bg-amber-400 text-zinc-900'
+                    : 'bg-zinc-800 text-zinc-400'
+                }`}
+              >
+                {c.symbol} {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Who paid */}
         <div>
           <label className="text-xs text-zinc-500 block mb-2">คนจ่าย</label>
@@ -191,7 +216,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
         {splitType === 'equal' && (
           <div className="space-y-3 bg-zinc-900 rounded-2xl p-4 border border-white/5">
             <div>
-              <label className="text-xs text-zinc-500 block mb-1.5">ยอดรวม (บาท)</label>
+              <label className="text-xs text-zinc-500 block mb-1.5">ยอดรวม ({currency})</label>
               <input
                 type="number"
                 min="0"
@@ -222,7 +247,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
               </div>
               {perPerson > 0 && (
                 <p className="text-xs text-amber-400/80 mt-2">
-                  คนละ {perPerson.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                  คนละ {formatAmount(perPerson, currency)}
                 </p>
               )}
             </div>
@@ -244,7 +269,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
                   placeholder="0.00"
                   className="flex-1 bg-zinc-800 border border-white/10 text-zinc-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50"
                 />
-                <span className="text-zinc-600 text-sm shrink-0">บาท</span>
+                <span className="text-zinc-600 text-sm shrink-0">{currency}</span>
               </div>
             ))}
           </div>
@@ -270,7 +295,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
           <span className="text-zinc-500 text-sm">
             รวม{' '}
             <span className="font-bold text-amber-400">
-              {displayTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+              {formatAmount(displayTotal, currency)}
             </span>
           </span>
           <div className="flex gap-2">
@@ -301,9 +326,11 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
 
             <div className="text-center py-2">
               <p className="text-5xl font-black text-amber-400 tabular-nums">
-                {displayTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                {formatAmount(displayTotal, currency)}
               </p>
-              <p className="text-zinc-600 text-sm mt-1">บาท</p>
+              {currency !== 'THB' && (
+                <p className="text-xs text-zinc-600 mt-1">จะแปลงเป็น ฿ เมื่อตั้งอัตราแลกเปลี่ยน</p>
+              )}
             </div>
 
             <div className="bg-zinc-800/60 rounded-2xl p-4 space-y-2.5">
@@ -327,7 +354,7 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
                 <div key={s.member_id} className="flex justify-between items-center">
                   <span className="text-zinc-400 text-sm">{s.name}</span>
                   <span className="text-zinc-200 text-sm font-semibold tabular-nums">
-                    {s.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                    {formatAmount(s.amount, currency)}
                   </span>
                 </div>
               ))}

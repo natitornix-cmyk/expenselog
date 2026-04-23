@@ -27,7 +27,7 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
     );
   }
 
-  const { balances, settlements } = data;
+  const { balances, settlements, hasUnconverted } = data;
   const allSettled = balances.every(b => Math.abs(b.net) < 0.01);
 
   async function handleSaveRates() {
@@ -49,6 +49,15 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
   return (
     <div className="p-4 space-y-5">
       <h2 className="font-black text-zinc-100 text-lg">ยอดสุทธิ</h2>
+
+      {hasUnconverted && (
+        <div className="bg-amber-950/40 border border-amber-500/20 rounded-xl px-3 py-2.5">
+          <p className="text-xs text-amber-400">
+            ⚠️ มีรายการ RM / S$ ที่ยังไม่มีอัตราแลกเปลี่ยน — ยอดด้านล่างอาจไม่ถูกต้อง
+            กรุณาตั้งอัตราแลกเปลี่ยนด้านล่างก่อน
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         {balances.map(b => (

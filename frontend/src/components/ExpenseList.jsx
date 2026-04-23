@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { deleteExpense, flagExpense, resolveFlag, getAuditLog } from '../api';
+import { formatAmount } from '../utils/currency';
 
 function AuditLog({ expenseId }) {
   const [log, setLog] = useState(null);
@@ -167,7 +168,7 @@ export default function ExpenseList({ expenses, currentUserId, currentMemberId, 
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-black text-amber-400 text-xl tabular-nums">
-                      {expense.total?.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      {formatAmount(expense.total ?? 0, expense.currency)}
                     </p>
                     <span className="text-xs bg-amber-400/10 text-amber-400/80 px-2 py-0.5 rounded-full inline-block mt-0.5 border border-amber-400/20">
                       {expense.paid_by_name} จ่าย
@@ -182,7 +183,7 @@ export default function ExpenseList({ expenses, currentUserId, currentMemberId, 
                         key={s.member_id}
                         className="text-xs bg-white/5 text-zinc-500 px-2 py-0.5 rounded-full border border-white/8"
                       >
-                        {s.name}: {s.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        {s.name}: {formatAmount(s.amount, expense.currency)}
                       </span>
                     ))}
                   </div>

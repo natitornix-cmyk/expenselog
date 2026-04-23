@@ -74,7 +74,7 @@ export async function getExpenses() {
   const { data, error } = await supabase
     .from('expenses')
     .select(`
-      id, date, description, paid_by, notes, created_at, created_by,
+      id, date, description, paid_by, notes, created_at, created_by, currency,
       paid_by_member:members!paid_by(name),
       splits:expense_splits(member_id, amount, member:members!member_id(name)),
       flags:expense_flags(id, note, resolved, member:members!member_id(name))
@@ -119,10 +119,10 @@ async function logAudit(expenseId, action, snapshot, byName) {
   });
 }
 
-export async function createExpense({ date, description, paid_by, splits, notes, created_by, paid_by_name, my_name }) {
+export async function createExpense({ date, description, paid_by, splits, notes, currency, created_by, paid_by_name, my_name }) {
   const { data: expense, error } = await supabase
     .from('expenses')
-    .insert({ date, description, paid_by, notes: notes ?? '', created_by })
+    .insert({ date, description, paid_by, notes: notes ?? '', currency: currency ?? 'THB', created_by })
     .select()
     .single();
   if (error) throw new Error(error.message);
@@ -139,7 +139,7 @@ export async function createExpense({ date, description, paid_by, splits, notes,
   return expense;
 }
 
-export async function updateExpense(id, { date, description, paid_by, splits, notes, paid_by_name, my_name }) {
+export async function updateExpense(id, { date, description, paid_by, splits, notes, currency, paid_by_name, my_name }) {
   // Fetch old splits for audit snapshot before overwriting
   const { data: oldSplits } = await supabase
     .from('expense_splits')
@@ -154,7 +154,7 @@ export async function updateExpense(id, { date, description, paid_by, splits, no
 
   const { data, error } = await supabase
     .from('expenses')
-    .update({ date, description, paid_by, notes: notes ?? '' })
+    .update({ date, description, paid_by, notes: notes ?? '', currency: currency ?? 'THB' })
     .eq('id', id)
     .select();
   if (error) throw new Error(error.message);

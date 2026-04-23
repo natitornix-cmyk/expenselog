@@ -122,3 +122,11 @@ CREATE POLICY "rates_upsert" ON exchange_rates FOR ALL TO authenticated USING (t
 INSERT INTO exchange_rates (from_currency, to_currency, rate)
 VALUES ('THB', 'MYR', 0.130000), ('THB', 'SGD', 0.040000)
 ON CONFLICT (from_currency, to_currency) DO NOTHING;
+
+-- =====================================================================
+-- Migration: Multi-currency expense entry (THB / MYR / SGD)
+-- Run this block after the block above
+-- =====================================================================
+
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS
+  currency text NOT NULL DEFAULT 'THB';
