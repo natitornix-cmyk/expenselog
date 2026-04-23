@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import MembersSettings from './components/MembersSettings';
 import AddExpenseForm from './components/AddExpenseForm';
 import ExpenseList from './components/ExpenseList';
 import BalanceSummary from './components/BalanceSummary';
-import { getMembers, getExpenses, getBalances } from './api';
+import { getMembers, getExpenses } from './api';
+import { calculateBalances } from './utils/balances';
 
 const TABS = [
   { id: 'members', label: 'สมาชิก', icon: '👥' },
@@ -16,7 +17,6 @@ export default function App() {
   const [tab, setTab] = useState('add');
   const [members, setMembers] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [balances, setBalances] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
 
   const refreshMembers = useCallback(async () => {
@@ -24,15 +24,18 @@ export default function App() {
   }, []);
 
   const refreshExpenses = useCallback(async () => {
-    const [exps, bals] = await Promise.all([getExpenses(), getBalances()]);
-    setExpenses(exps);
-    setBalances(bals);
+    setExpenses(await getExpenses());
   }, []);
 
   useEffect(() => {
     refreshMembers();
     refreshExpenses();
   }, [refreshMembers, refreshExpenses]);
+
+  const balances = useMemo(
+    () => (members.length > 0 ? calculateBalances(members, expenses) : null),
+    [members, expenses]
+  );
 
   function handleEditExpense(expense) {
     setEditingExpense(expense);
@@ -74,9 +77,7 @@ export default function App() {
             onEdit={handleEditExpense}
           />
         )}
-        {tab === 'balances' && (
-          <BalanceSummary data={balances} />
-        )}
+        {tab === 'balances' && <BalanceSummary data={balances} />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white border-t border-slate-200 flex">
