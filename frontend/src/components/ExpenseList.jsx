@@ -214,7 +214,8 @@ export default function ExpenseList({ expenses, currentUserId, currentMemberId, 
 
                 {/* Splits */}
                 {expense.splits?.length > 0 && (
-                  <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <span className="text-xs text-red-600 font-semibold shrink-0">ลูกหนี้</span>
                     {expense.splits.map(s => (
                       <span key={s.member_id} className="flex items-center gap-1 text-xs text-zinc-500">
                         <Avatar url={s.avatar_url} name={s.name} size="xs" />
@@ -233,8 +234,9 @@ export default function ExpenseList({ expenses, currentUserId, currentMemberId, 
                 {/* Footer: payer + actions */}
                 <div className="flex items-center gap-2 pt-1.5 border-t border-white/5">
                   <Avatar url={expense.paid_by_avatar} name={expense.paid_by_name} size="sm" />
-                  <span className="text-xs text-zinc-500 flex-1 truncate">
-                    <span className="text-zinc-300 font-medium">{expense.paid_by_name}</span> จ่าย
+                  <span className="text-xs flex-1 min-w-0 flex items-center gap-1.5 truncate">
+                    <span className="text-zinc-300 font-medium truncate">{expense.paid_by_name}</span>
+                    <span className="bg-emerald-950 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-semibold shrink-0">เจ้าหนี้</span>
                   </span>
 
                   <div className="flex items-center gap-1 shrink-0">
