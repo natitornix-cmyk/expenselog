@@ -2,17 +2,6 @@ import { useState } from 'react';
 import { upsertExchangeRate } from '../api';
 import { convertAmount, formatTHB, formatMYR, formatSGD } from '../utils/currency';
 
-function CurrencyRow({ thb, rates }) {
-  const { myr, sgd } = convertAmount(thb, rates);
-  if (!myr && !sgd) return null;
-  return (
-    <div className="flex gap-3 mt-1">
-      {myr != null && <span className="text-xs text-zinc-500 tabular-nums">{formatMYR(myr)}</span>}
-      {sgd != null && <span className="text-xs text-zinc-500 tabular-nums">{formatSGD(sgd)}</span>}
-    </div>
-  );
-}
-
 export default function BalanceSummary({ data, rates, onRatesChanged }) {
   const [editingRates, setEditingRates] = useState(false);
   const [myrInput, setMyrInput] = useState('');
@@ -48,7 +37,7 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
 
   return (
     <div className="p-4 space-y-5">
-      <h2 className="font-black text-zinc-100 text-lg">ยอดสุทธิ</h2>
+      <h2 className="font-black text-zinc-100 text-lg">ยอดสุทธิของแต่ละคน</h2>
 
       {hasUnconverted && (
         <div className="bg-amber-950/40 border border-amber-500/20 rounded-xl px-3 py-2.5">
@@ -59,38 +48,58 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        {balances.map(b => (
-          <div
-            key={b.id}
-            className={`rounded-2xl p-4 border ${
-              b.net > 0.01
-                ? 'bg-gradient-to-br from-emerald-950 to-zinc-900 border-emerald-500/20'
-                : b.net < -0.01
-                ? 'bg-gradient-to-br from-red-950 to-zinc-900 border-red-500/20'
-                : 'bg-zinc-900 border-white/8'
-            }`}
-          >
-            <p className="font-semibold text-zinc-400 text-sm">{b.name}</p>
-            <p className={`text-2xl font-black mt-1 tabular-nums ${
-              b.net > 0.01 ? 'text-emerald-400' : b.net < -0.01 ? 'text-red-400' : 'text-zinc-600'
-            }`}>
-              {b.net >= 0 ? '+' : ''}
-              {formatTHB(b.net)}
-            </p>
-            <CurrencyRow thb={Math.abs(b.net)} rates={rates} />
-            <p className={`text-xs mt-1 ${
-              b.net > 0.01 ? 'text-emerald-600' : b.net < -0.01 ? 'text-red-600' : 'text-zinc-700'
-            }`}>
-              {b.net > 0.01 ? 'คนอื่นติดหนี้' : b.net < -0.01 ? 'ต้องโอนคืน' : 'เท่ากัน ✓'}
-            </p>
-          </div>
-        ))}
+      {/* Balance list */}
+      <div className="space-y-2">
+        {balances.map(b => {
+          const isCreditor = b.net > 0.01;
+          const isDebtor = b.net < -0.01;
+          const { myr, sgd } = convertAmount(Math.abs(b.net), rates);
+          return (
+            <div
+              key={b.id}
+              className="bg-zinc-900 rounded-2xl border border-white/8 px-4 py-3.5 flex items-center gap-3"
+            >
+              {/* Dot */}
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                isCreditor ? 'bg-emerald-400' : isDebtor ? 'bg-red-400' : 'bg-zinc-600'
+              }`} />
+
+              {/* Name + badge */}
+              <div className="flex-1 min-w-0">
+                <span className="font-semibold text-zinc-200 text-sm">{b.name}</span>
+                <span className={`ml-2 text-xs font-semibold px-1.5 py-0.5 rounded-md ${
+                  isCreditor
+                    ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/20'
+                    : isDebtor
+                    ? 'bg-red-950 text-red-400 border border-red-500/20'
+                    : 'bg-zinc-800 text-zinc-600 border border-white/8'
+                }`}>
+                  {isCreditor ? 'เจ้าหนี้' : isDebtor ? 'ลูกหนี้' : 'เท่ากัน'}
+                </span>
+              </div>
+
+              {/* Amount */}
+              <div className="shrink-0 text-right">
+                <p className={`font-black tabular-nums text-lg ${
+                  isCreditor ? 'text-emerald-400' : isDebtor ? 'text-red-400' : 'text-zinc-600'
+                }`}>
+                  {b.net >= 0 ? '+' : ''}{formatTHB(b.net)}
+                </p>
+                {(myr != null || sgd != null) && (
+                  <div className="flex gap-2 justify-end mt-0.5">
+                    {myr != null && <span className="text-xs text-zinc-500 tabular-nums">{formatMYR(myr)}</span>}
+                    {sgd != null && <span className="text-xs text-zinc-500 tabular-nums">{formatSGD(sgd)}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {settlements.length > 0 && (
         <>
-          <h2 className="font-black text-zinc-100 text-lg pt-1">ต้องโอนเงิน</h2>
+          <h2 className="font-black text-zinc-100 text-lg pt-1">การชำระหนี้</h2>
           <div className="space-y-2">
             {settlements.map((s, i) => {
               const { myr, sgd } = convertAmount(s.amount, rates);
@@ -99,10 +108,22 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
                   key={i}
                   className="bg-zinc-900 rounded-2xl border border-white/8 px-4 py-4 flex items-center gap-3"
                 >
-                  <span className="font-bold text-red-400 shrink-0">{s.from}</span>
+                  {/* Debtor */}
+                  <div className="min-w-0">
+                    <p className="font-bold text-red-400 truncate">{s.from}</p>
+                    <p className="text-xs text-red-600 mt-0.5">ลูกหนี้</p>
+                  </div>
+
                   <span className="text-amber-400 text-base flex-1 text-center">→</span>
-                  <span className="font-bold text-emerald-400 shrink-0">{s.to}</span>
-                  <div className="ml-auto shrink-0 text-right">
+
+                  {/* Creditor */}
+                  <div className="min-w-0 text-right">
+                    <p className="font-bold text-emerald-400 truncate">{s.to}</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">เจ้าหนี้</p>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="ml-2 shrink-0 text-right">
                     <div className="font-black text-zinc-100 text-xl tabular-nums">
                       {formatTHB(s.amount)}
                       <span className="text-zinc-600 text-xs ml-1">฿</span>
@@ -128,7 +149,7 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
         </div>
       )}
 
-      {/* Exchange rate editor */}
+      {/* Exchange rate — compact toggle */}
       <div className="border-t border-white/8 pt-4">
         {!editingRates ? (
           <div className="flex items-center justify-between">
@@ -143,14 +164,23 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
                 setSgdInput(rates?.SGD?.toString() ?? '');
                 setEditingRates(true);
               }}
-              className="text-xs text-zinc-600 hover:text-amber-400 transition-colors"
+              className="text-zinc-600 hover:text-amber-400 transition-colors p-1"
+              title="แก้ไขอัตราแลกเปลี่ยน"
             >
-              แก้ไขอัตราแลกเปลี่ยน
+              ⚙️
             </button>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-zinc-500 font-semibold">อัตราแลกเปลี่ยน (฿1 =)</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-zinc-500 font-semibold">อัตราแลกเปลี่ยน (฿1 =)</p>
+              <button
+                onClick={() => setEditingRates(false)}
+                className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
+              >
+                ✕
+              </button>
+            </div>
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="text-xs text-zinc-600 block mb-1">RM (MYR)</label>
