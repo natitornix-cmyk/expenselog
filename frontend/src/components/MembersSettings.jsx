@@ -32,34 +32,37 @@ export default function MembersSettings({ members, onChanged }) {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <h2 className="font-semibold text-slate-700">จัดการสมาชิก</h2>
+    <div className="p-4 space-y-5">
+      <h2 className="font-black text-zinc-100 text-lg">จัดการสมาชิก</h2>
 
       <form onSubmit={handleAdd} className="flex gap-2">
         <input
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="ชื่อสมาชิกใหม่"
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="flex-1 bg-zinc-800 border border-white/10 text-zinc-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 placeholder:text-zinc-600"
         />
         <button
           type="submit"
           disabled={loading || !name.trim()}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+          className="bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold px-4 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors"
         >
           เพิ่ม
         </button>
       </form>
 
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {error && <p className="text-red-400 text-sm">{error}</p>}
 
       <ul className="space-y-2">
         {members.map(m => (
-          <li key={m.id} className="bg-white rounded-xl px-4 py-3 flex items-center justify-between shadow-sm">
-            <span className="font-medium text-slate-800">{m.name}</span>
+          <li
+            key={m.id}
+            className="bg-zinc-900 rounded-2xl border border-white/8 px-4 py-3.5 flex items-center justify-between"
+          >
+            <span className="font-semibold text-zinc-200">{m.name}</span>
             <button
               onClick={() => handleDelete(m)}
-              className="text-red-400 hover:text-red-600 text-sm px-2 py-1"
+              className="text-xs text-red-500/50 hover:text-red-400 px-2.5 py-1.5 rounded-lg hover:bg-red-950/30 transition-colors"
             >
               ลบ
             </button>
@@ -68,7 +71,7 @@ export default function MembersSettings({ members, onChanged }) {
       </ul>
 
       {members.length === 0 && (
-        <p className="text-slate-400 text-sm text-center py-4">ยังไม่มีสมาชิก</p>
+        <p className="text-zinc-700 text-sm text-center py-6">ยังไม่มีสมาชิก</p>
       )}
     </div>
   );
