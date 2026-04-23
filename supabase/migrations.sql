@@ -146,3 +146,13 @@ CREATE POLICY "members_delete" ON members FOR DELETE TO authenticated
 -- =====================================================================
 
 ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url text;
+
+-- =====================================================================
+-- Migration: Allow claiming unlinked member rows (manual member → Google account)
+-- Run this block in Supabase SQL Editor
+-- =====================================================================
+
+DROP POLICY IF EXISTS "members_update" ON members;
+CREATE POLICY "members_update" ON members FOR UPDATE TO authenticated
+  USING (user_id = auth.uid() OR user_id IS NULL)
+  WITH CHECK (user_id = auth.uid());

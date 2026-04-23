@@ -91,8 +91,8 @@ export async function getExpenses() {
     .from('expenses')
     .select(`
       id, date, description, paid_by, notes, created_at, created_by, currency,
-      paid_by_member:members!paid_by(name),
-      splits:expense_splits(member_id, amount, member:members!member_id(name)),
+      paid_by_member:members!paid_by(name, avatar_url),
+      splits:expense_splits(member_id, amount, member:members!member_id(name, avatar_url)),
       flags:expense_flags(id, note, resolved, member:members!member_id(name))
     `)
     .order('date', { ascending: false })
@@ -102,16 +102,33 @@ export async function getExpenses() {
   return data.map(e => ({
     ...e,
     paid_by_name: e.paid_by_member?.name,
+    paid_by_avatar: e.paid_by_member?.avatar_url ?? null,
     splits: (e.splits ?? []).map(s => ({
       member_id: s.member_id,
       amount: s.amount,
       name: s.member?.name,
+      avatar_url: s.member?.avatar_url ?? null,
     })),
     total: (e.splits ?? []).reduce((sum, s) => sum + s.amount, 0),
     activeFlags: (e.flags ?? [])
       .filter(f => !f.resolved)
       .map(f => ({ id: f.id, note: f.note, flaggedBy: f.member?.name })),
   }));
+}
+
+export async function claimMember(memberId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const avatarUrl = user.user_metadata?.avatar_url ?? null;
+  const { data, error } = await supabase
+    .from('members')
+    .update({ user_id: user.id, avatar_url: avatarUrl })
+    .eq('id', memberId)
+    .is('user_id', null)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('สมาชิกนี้ถูกเชื่อมโยงไปแล้ว');
+  return data;
 }
 
 function buildSnapshot(expense, splits, paidByName) {

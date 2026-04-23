@@ -2,6 +2,25 @@ import { useState } from 'react';
 import { deleteExpense, flagExpense, resolveFlag, getAuditLog } from '../api';
 import { formatAmount } from '../utils/currency';
 
+function Avatar({ url, name, size = 'sm' }) {
+  const dim = size === 'sm' ? 'w-6 h-6 text-[10px]' : 'w-5 h-5 text-[9px]';
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        referrerPolicy="no-referrer"
+        className={`${dim} rounded-full object-cover shrink-0`}
+      />
+    );
+  }
+  return (
+    <div className={`${dim} rounded-full bg-amber-400/20 border border-amber-400/30 flex items-center justify-center font-black text-amber-300 shrink-0`}>
+      {name?.[0]?.toUpperCase() ?? '?'}
+    </div>
+  );
+}
+
 function AuditLog({ expenseId }) {
   const [log, setLog] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -80,6 +99,24 @@ function AuditLog({ expenseId }) {
   );
 }
 
+// Edit pencil icon
+function IconEdit() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+    </svg>
+  );
+}
+
+// Trash icon
+function IconTrash() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+
 export default function ExpenseList({ expenses, currentUserId, currentMemberId, onDeleted, onEdit, onFlagged }) {
   const [flagging, setFlagging] = useState(null);
   const [flagNote, setFlagNote] = useState('');
@@ -133,9 +170,7 @@ export default function ExpenseList({ expenses, currentUserId, currentMemberId, 
             <div
               key={expense.id}
               className={`rounded-2xl border shadow-xl overflow-hidden ${
-                hasFlags
-                  ? 'bg-zinc-900 border-amber-500/30'
-                  : 'bg-zinc-900 border-white/8'
+                hasFlags ? 'bg-zinc-900 border-amber-500/30' : 'bg-zinc-900 border-white/8'
               }`}
             >
               {/* Flag banner */}
@@ -160,64 +195,79 @@ export default function ExpenseList({ expenses, currentUserId, currentMemberId, 
                 </div>
               )}
 
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2">
+              <div className="p-4 space-y-2.5">
+                {/* Header: description + amount */}
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-zinc-100 leading-snug">{expense.description}</p>
-                    <p className="text-xs text-zinc-600 mt-0.5">{expense.date}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-black text-amber-400 text-xl tabular-nums">
-                      {formatAmount(expense.total ?? 0, expense.currency)}
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      {expense.date}
+                      {expense.currency && expense.currency !== 'THB' && (
+                        <span className="ml-1.5 text-zinc-700">{expense.currency}</span>
+                      )}
                     </p>
-                    <span className="text-xs bg-amber-400/10 text-amber-400/80 px-2 py-0.5 rounded-full inline-block mt-0.5 border border-amber-400/20">
-                      {expense.paid_by_name} จ่าย
-                    </span>
                   </div>
+                  <p className="font-black text-amber-400 text-xl tabular-nums shrink-0">
+                    {formatAmount(expense.total ?? 0, expense.currency)}
+                  </p>
                 </div>
 
+                {/* Splits */}
                 {expense.splits?.length > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5">
                     {expense.splits.map(s => (
-                      <span
-                        key={s.member_id}
-                        className="text-xs bg-white/5 text-zinc-500 px-2 py-0.5 rounded-full border border-white/8"
-                      >
-                        {s.name}: {formatAmount(s.amount, expense.currency)}
+                      <span key={s.member_id} className="flex items-center gap-1 text-xs text-zinc-500">
+                        <Avatar url={s.avatar_url} name={s.name} size="xs" />
+                        <span>{s.name}</span>
+                        <span className="text-zinc-700">{formatAmount(s.amount, expense.currency)}</span>
                       </span>
                     ))}
                   </div>
                 )}
 
+                {/* Notes */}
                 {expense.notes && (
-                  <p className="text-xs text-zinc-600 mt-2">📝 {expense.notes}</p>
+                  <p className="text-xs text-zinc-600">📝 {expense.notes}</p>
                 )}
 
-                <div className="flex gap-1 mt-3 justify-end border-t border-white/5 pt-2.5">
-                  {!isOwner && (
-                    <button
-                      onClick={() => { setFlagging(expense); setFlagNote(''); }}
-                      className="text-xs text-zinc-600 hover:text-amber-400 px-2.5 py-1.5 rounded-lg transition-colors"
-                    >
-                      ⚠️ ทักท้วง
-                    </button>
-                  )}
-                  {isOwner && (
-                    <>
+                {/* Footer: payer + actions */}
+                <div className="flex items-center gap-2 pt-1.5 border-t border-white/5">
+                  <Avatar url={expense.paid_by_avatar} name={expense.paid_by_name} size="sm" />
+                  <span className="text-xs text-zinc-500 flex-1 truncate">
+                    <span className="text-zinc-300 font-medium">{expense.paid_by_name}</span> จ่าย
+                  </span>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!isOwner && (
                       <button
-                        onClick={() => onEdit(expense)}
-                        className="text-xs text-zinc-500 hover:text-zinc-200 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                        onClick={() => { setFlagging(expense); setFlagNote(''); }}
+                        className="p-1.5 rounded-lg text-zinc-600 hover:text-amber-400 hover:bg-amber-400/10 transition-colors"
+                        title="ทักท้วง"
                       >
-                        แก้ไข
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
                       </button>
-                      <button
-                        onClick={() => handleDelete(expense)}
-                        className="text-xs text-red-500/60 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-950/30 transition-colors"
-                      >
-                        ลบ
-                      </button>
-                    </>
-                  )}
+                    )}
+                    {isOwner && (
+                      <>
+                        <button
+                          onClick={() => onEdit(expense)}
+                          className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-200 hover:bg-white/8 transition-colors"
+                          title="แก้ไข"
+                        >
+                          <IconEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(expense)}
+                          className="p-1.5 rounded-lg text-zinc-700 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                          title="ลบ"
+                        >
+                          <IconTrash />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <AuditLog expenseId={expense.id} />
