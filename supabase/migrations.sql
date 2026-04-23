@@ -156,3 +156,13 @@ DROP POLICY IF EXISTS "members_update" ON members;
 CREATE POLICY "members_update" ON members FOR UPDATE TO authenticated
   USING (user_id = auth.uid() OR user_id IS NULL)
   WITH CHECK (user_id = auth.uid());
+
+-- =====================================================================
+-- Fix: expense_flags.member_id FK blocks deleting a member who has flagged
+-- Run this block if "ลบบัญชีนี้" fails with expense_flags_member_id_fkey error
+-- =====================================================================
+
+ALTER TABLE expense_flags
+  DROP CONSTRAINT expense_flags_member_id_fkey,
+  ADD CONSTRAINT expense_flags_member_id_fkey
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
