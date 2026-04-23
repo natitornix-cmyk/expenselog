@@ -47,7 +47,9 @@ export default function App() {
   useEffect(() => {
     if (session === undefined) return;
     if (!session) { setMyProfile(null); return; }
-    getMyProfile().then(profile => setMyProfile(profile ?? null));
+    getMyProfile()
+      .then(profile => setMyProfile(profile ?? null))
+      .catch(() => setMyProfile(null));
   }, [session]);
 
   const isReady = !!(session && myProfile);

@@ -34,11 +34,12 @@ export async function deleteMember(id) {
 // Each Google user creates their own member row (user_id column links them).
 
 export async function getMyProfile() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
   const { data, error } = await supabase
     .from('members')
     .select('id, name, user_id')
-    .not('user_id', 'is', null)
-    .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+    .eq('user_id', user.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data ?? null;
