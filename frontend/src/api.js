@@ -75,8 +75,10 @@ export async function deleteMyAccount(memberId) {
   ]);
   if (inExpenses?.length || inSplits?.length)
     throw new Error('ไม่สามารถลบได้ เพราะมีรายการค่าใช้จ่ายที่เกี่ยวข้องอยู่');
-  const { error } = await supabase.from('members').delete().eq('id', memberId);
+  const { data, error } = await supabase
+    .from('members').delete().eq('id', memberId).select();
   if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('ไม่มีสิทธิ์ลบ — กรุณาแก้ไข RLS policy ใน Supabase ก่อน (ดูคำแนะนำในแอป)');
 }
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────

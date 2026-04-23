@@ -130,3 +130,12 @@ ON CONFLICT (from_currency, to_currency) DO NOTHING;
 
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS
   currency text NOT NULL DEFAULT 'THB';
+
+-- =====================================================================
+-- Fix: allow users to delete their own member row (delete account)
+-- Run this block if "ลบบัญชีนี้" button shows permission error
+-- =====================================================================
+
+DROP POLICY IF EXISTS "members_delete" ON members;
+CREATE POLICY "members_delete" ON members FOR DELETE TO authenticated
+  USING (user_id IS NULL OR user_id = auth.uid());
