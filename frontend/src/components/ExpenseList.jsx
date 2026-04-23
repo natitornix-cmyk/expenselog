@@ -1,5 +1,83 @@
 import { useState } from 'react';
-import { deleteExpense, flagExpense, resolveFlag } from '../api';
+import { deleteExpense, flagExpense, resolveFlag, getAuditLog } from '../api';
+
+function AuditLog({ expenseId }) {
+  const [log, setLog] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    if (log !== null) { setLog(null); return; }
+    setLoading(true);
+    try {
+      setLog(await getAuditLog(expenseId));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function describeEntry(entry) {
+    if (entry.action === 'create') {
+      const s = entry.snapshot;
+      return {
+        label: 'สร้างรายการ',
+        detail: `฿${s.total?.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+      };
+    }
+    if (entry.action === 'update') {
+      const { old: o, new: n } = entry.snapshot;
+      const lines = [];
+      if (o?.total !== n?.total) {
+        lines.push(`฿${o?.total?.toLocaleString('th-TH', { minimumFractionDigits: 2 })} → ฿${n?.total?.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`);
+      }
+      if (o?.description !== n?.description) lines.push(`"${o?.description}" → "${n?.description}"`);
+      if (o?.date !== n?.date) lines.push(`${o?.date} → ${n?.date}`);
+      return { label: 'แก้ไข', detail: lines.join(' · ') || '—' };
+    }
+    if (entry.action === 'delete') {
+      return { label: 'ลบ', detail: '' };
+    }
+    return { label: entry.action, detail: '' };
+  }
+
+  return (
+    <div className="border-t border-white/5 pt-2 mt-1">
+      <button
+        onClick={load}
+        className="text-xs text-zinc-700 hover:text-zinc-500 transition-colors"
+      >
+        {loading ? '...' : log === null ? '📋 ประวัติ' : '▲ ซ่อน'}
+      </button>
+      {log !== null && (
+        <div className="mt-2 space-y-2">
+          {log.length === 0 && (
+            <p className="text-xs text-zinc-700">ไม่มีประวัติ</p>
+          )}
+          {log.map(entry => {
+            const { label, detail } = describeEntry(entry);
+            return (
+              <div key={entry.id} className="flex items-start gap-2">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold shrink-0 ${
+                  entry.action === 'create' ? 'bg-emerald-950 text-emerald-500' :
+                  entry.action === 'update' ? 'bg-amber-950 text-amber-500' :
+                  'bg-red-950 text-red-500'
+                }`}>{label}</span>
+                <div className="min-w-0">
+                  <span className="text-xs text-zinc-400 font-medium">{entry.changed_by_name ?? '?'}</span>
+                  {detail && <span className="text-xs text-zinc-600"> · {detail}</span>}
+                  <p className="text-[10px] text-zinc-700">{formatDate(entry.changed_at)}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ExpenseList({ expenses, currentUserId, currentMemberId, onDeleted, onEdit, onFlagged }) {
   const [flagging, setFlagging] = useState(null);
@@ -140,6 +218,8 @@ export default function ExpenseList({ expenses, currentUserId, currentMemberId, 
                     </>
                   )}
                 </div>
+
+                <AuditLog expenseId={expense.id} />
               </div>
             </div>
           );

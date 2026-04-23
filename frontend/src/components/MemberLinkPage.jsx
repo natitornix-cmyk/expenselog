@@ -1,46 +1,22 @@
-import { useState, useEffect } from 'react';
-import { getMembers, getClaimedMemberIds, linkUserToMember, addMember } from '../api';
+import { useState } from 'react';
+import { createMyProfile } from '../api';
 
 export default function MemberLinkPage({ session, onLinked }) {
-  const [members, setMembers] = useState([]);
-  const [claimedIds, setClaimedIds] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [nickname, setNickname] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [newName, setNewName] = useState('');
-  const [addingNew, setAddingNew] = useState(false);
 
-  useEffect(() => {
-    Promise.all([getMembers(), getClaimedMemberIds()]).then(([mems, claimed]) => {
-      setMembers(mems);
-      setClaimedIds(claimed);
-    });
-  }, []);
-
-  async function handleConfirm() {
-    if (!selected) return;
+  async function handleConfirm(e) {
+    e.preventDefault();
+    if (!nickname.trim()) return;
     setSaving(true);
     setError('');
     try {
-      await linkUserToMember(session.user.id, selected);
+      await createMyProfile(nickname.trim());
       onLinked();
     } catch (err) {
       setError(err.message);
       setSaving(false);
-    }
-  }
-
-  async function handleAddAndLink() {
-    if (!newName.trim()) return;
-    setAddingNew(true);
-    setError('');
-    try {
-      const member = await addMember(newName.trim());
-      await linkUserToMember(session.user.id, member.id);
-      onLinked();
-    } catch (err) {
-      setError(err.message);
-      setAddingNew(false);
     }
   }
 
@@ -49,69 +25,34 @@ export default function MemberLinkPage({ session, onLinked }) {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <div className="text-5xl mb-3">👤</div>
-          <h2 className="text-2xl font-black text-zinc-100">คุณคือใคร?</h2>
+          <h2 className="text-2xl font-black text-zinc-100">ตั้งชื่อเล่น</h2>
           <p className="text-zinc-600 text-sm mt-1.5">{session.user.email}</p>
+          <p className="text-zinc-500 text-xs mt-2">ชื่อที่จะแสดงให้เพื่อนในกลุ่มเห็น</p>
         </div>
 
-        <div className="space-y-2">
-          {members.map(m => {
-            const claimed = claimedIds.includes(m.id);
-            const isSelected = selected === m.id;
-            return (
-              <button
-                key={m.id}
-                disabled={claimed}
-                onClick={() => setSelected(m.id)}
-                className={`w-full px-4 py-4 rounded-2xl border text-left transition-all ${
-                  claimed
-                    ? 'bg-zinc-900/40 border-white/5 text-zinc-600 cursor-not-allowed'
-                    : isSelected
-                    ? 'bg-amber-400/15 border-amber-400/50 text-amber-300 shadow-lg shadow-amber-400/10'
-                    : 'bg-zinc-900 border-white/8 text-zinc-200 hover:border-white/20 active:border-amber-400/30'
-                }`}
-              >
-                <span className="font-bold text-base">{m.name}</span>
-                {claimed && (
-                  <span className="text-xs ml-2 text-zinc-700">(ถูกใช้แล้ว)</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <form onSubmit={handleConfirm} className="space-y-4">
+          <input
+            value={nickname}
+            onChange={e => setNickname(e.target.value)}
+            placeholder="เช่น บูม, หนึ่ง, โอม..."
+            autoFocus
+            className="w-full bg-zinc-800 border border-white/10 text-zinc-100 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-amber-400/50 placeholder:text-zinc-600 text-center"
+          />
 
-        <div className="border-t border-white/8 pt-4 space-y-2">
-          <p className="text-xs text-zinc-600 text-center">ไม่เจอชื่อคุณ? เพิ่มใหม่ได้เลย</p>
-          <div className="flex gap-2">
-            <input
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddAndLink()}
-              placeholder="ใส่ชื่อของคุณ"
-              className="flex-1 bg-zinc-800 border border-white/10 text-zinc-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 placeholder:text-zinc-600"
-            />
-            <button
-              onClick={handleAddAndLink}
-              disabled={!newName.trim() || addingNew}
-              className="bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors"
-            >
-              {addingNew ? '...' : 'เพิ่ม'}
-            </button>
-          </div>
-        </div>
+          {error && (
+            <p className="text-red-400 text-sm text-center bg-red-950/40 border border-red-500/20 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
 
-        {error && (
-          <p className="text-red-400 text-sm text-center bg-red-950/40 border border-red-500/20 rounded-xl px-3 py-2">
-            {error}
-          </p>
-        )}
-
-        <button
-          onClick={handleConfirm}
-          disabled={!selected || saving}
-          className="w-full bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold py-4 rounded-2xl transition-colors disabled:opacity-40 text-base shadow-lg shadow-amber-400/20"
-        >
-          {saving ? 'กำลังบันทึก...' : 'ยืนยัน'}
-        </button>
+          <button
+            type="submit"
+            disabled={!nickname.trim() || saving}
+            className="w-full bg-amber-400 hover:bg-amber-300 text-zinc-900 font-bold py-4 rounded-2xl transition-colors disabled:opacity-40 text-base shadow-lg shadow-amber-400/20"
+          >
+            {saving ? 'กำลังบันทึก...' : 'เริ่มใช้งาน →'}
+          </button>
+        </form>
       </div>
     </div>
   );

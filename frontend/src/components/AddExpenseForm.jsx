@@ -3,7 +3,7 @@ import { createExpense, updateExpense } from '../api';
 
 const today = () => new Date().toISOString().split('T')[0];
 
-export default function AddExpenseForm({ members, editingExpense, onSaved, onCancel, currentUserId }) {
+export default function AddExpenseForm({ members, editingExpense, onSaved, onCancel, currentUserId, myName }) {
   const [date, setDate] = useState(today());
   const [description, setDescription] = useState('');
   const [paidBy, setPaidBy] = useState('');
@@ -91,7 +91,8 @@ export default function AddExpenseForm({ members, editingExpense, onSaved, onCan
     setError('');
     const splits = buildSplits();
     try {
-      const payload = { date, description, paid_by: paidBy, splits, notes };
+      const paidByName = members.find(m => m.id === paidBy)?.name;
+      const payload = { date, description, paid_by: paidBy, splits, notes, paid_by_name: paidByName, my_name: myName };
       if (editingExpense) {
         await updateExpense(editingExpense.id, payload);
       } else {

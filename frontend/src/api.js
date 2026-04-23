@@ -30,33 +30,40 @@ export async function deleteMember(id) {
   if (error) throw new Error(error.message);
 }
 
-// ─── Auth / User Links ────────────────────────────────────────────────────────
+// ─── User Profile ─────────────────────────────────────────────────────────────
+// Each Google user creates their own member row (user_id column links them).
 
-export async function getMyLink() {
+export async function getMyProfile() {
   const { data, error } = await supabase
-    .from('user_links').select('member_id').single();
-  if (error && error.code !== 'PGRST116') throw new Error(error.message);
+    .from('members')
+    .select('id, name, user_id')
+    .not('user_id', 'is', null)
+    .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
   return data ?? null;
 }
 
-export async function getClaimedMemberIds() {
-  const { data, error } = await supabase.from('user_links').select('member_id');
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(r => r.member_id);
-}
-
-export async function linkUserToMember(userId, memberId) {
-  const { error } = await supabase
-    .from('user_links').insert({ user_id: userId, member_id: memberId });
+export async function createMyProfile(nickname) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('members')
+    .insert({ name: nickname.trim(), user_id: user.id })
+    .select()
+    .single();
   if (error) {
-    if (error.code === '23505') throw new Error('สมาชิกนี้ถูกเชื่อมกับบัญชี Google อื่นแล้ว');
+    if (error.code === '23505') throw new Error('ชื่อเล่นนี้มีคนใช้แล้ว');
     throw new Error(error.message);
   }
+  return data;
 }
 
-export async function deleteMyLink() {
+export async function updateMyNickname(nickname) {
   const { data: { user } } = await supabase.auth.getUser();
-  const { error } = await supabase.from('user_links').delete().eq('user_id', user.id);
+  const { error } = await supabase
+    .from('members')
+    .update({ name: nickname.trim() })
+    .eq('user_id', user.id);
   if (error) throw new Error(error.message);
 }
 
@@ -90,7 +97,28 @@ export async function getExpenses() {
   }));
 }
 
-export async function createExpense({ date, description, paid_by, splits, notes, created_by }) {
+function buildSnapshot(expense, splits, paidByName) {
+  return {
+    description: expense.description,
+    date: expense.date,
+    paid_by_name: paidByName,
+    total: splits.reduce((s, x) => s + x.amount, 0),
+    splits: splits.map(s => ({ name: s.name, amount: s.amount })),
+  };
+}
+
+async function logAudit(expenseId, action, snapshot, byName) {
+  const { data: { user } } = await supabase.auth.getUser();
+  await supabase.from('expense_audit').insert({
+    expense_id: expenseId,
+    action,
+    changed_by: user.id,
+    changed_by_name: byName,
+    snapshot,
+  });
+}
+
+export async function createExpense({ date, description, paid_by, splits, notes, created_by, paid_by_name, my_name }) {
   const { data: expense, error } = await supabase
     .from('expenses')
     .insert({ date, description, paid_by, notes: notes ?? '', created_by })
@@ -105,10 +133,24 @@ export async function createExpense({ date, description, paid_by, splits, notes,
     );
     if (se) throw new Error(se.message);
   }
+
+  await logAudit(expense.id, 'create', buildSnapshot({ date, description }, valid, paid_by_name), my_name);
   return expense;
 }
 
-export async function updateExpense(id, { date, description, paid_by, splits, notes }) {
+export async function updateExpense(id, { date, description, paid_by, splits, notes, paid_by_name, my_name }) {
+  // Fetch old splits for audit snapshot before overwriting
+  const { data: oldSplits } = await supabase
+    .from('expense_splits')
+    .select('amount, member:members!member_id(name)')
+    .eq('expense_id', id);
+
+  const { data: oldExpense } = await supabase
+    .from('expenses')
+    .select('description, date, paid_by_member:members!paid_by(name)')
+    .eq('id', id)
+    .single();
+
   const { data, error } = await supabase
     .from('expenses')
     .update({ date, description, paid_by, notes: notes ?? '' })
@@ -125,11 +167,29 @@ export async function updateExpense(id, { date, description, paid_by, splits, no
     );
     if (se) throw new Error(se.message);
   }
+
+  const oldSnapshot = buildSnapshot(
+    { description: oldExpense?.description, date: oldExpense?.date },
+    (oldSplits ?? []).map(s => ({ name: s.member?.name, amount: s.amount })),
+    oldExpense?.paid_by_member?.name
+  );
+  const newSnapshot = buildSnapshot({ date, description }, valid, paid_by_name);
+  await logAudit(id, 'update', { old: oldSnapshot, new: newSnapshot }, my_name);
 }
 
 export async function deleteExpense(id) {
   const { error } = await supabase.from('expenses').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+export async function getAuditLog(expenseId) {
+  const { data, error } = await supabase
+    .from('expense_audit')
+    .select('id, action, changed_by_name, changed_at, snapshot')
+    .eq('expense_id', expenseId)
+    .order('changed_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 // ─── Flags ────────────────────────────────────────────────────────────────────
@@ -148,5 +208,30 @@ export async function flagExpense(expenseId, note, memberId) {
 export async function resolveFlag(flagId) {
   const { error } = await supabase
     .from('expense_flags').update({ resolved: true }).eq('id', flagId);
+  if (error) throw new Error(error.message);
+}
+
+// ─── Exchange Rates ───────────────────────────────────────────────────────────
+
+export async function getExchangeRates() {
+  const { data, error } = await supabase
+    .from('exchange_rates')
+    .select('to_currency, rate')
+    .eq('from_currency', 'THB');
+  if (error) throw new Error(error.message);
+  const result = {};
+  for (const row of data ?? []) result[row.to_currency] = parseFloat(row.rate);
+  return result; // e.g. { MYR: 0.13, SGD: 0.04 }
+}
+
+export async function upsertExchangeRate(toCurrency, rate) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('exchange_rates').upsert({
+    from_currency: 'THB',
+    to_currency: toCurrency,
+    rate,
+    updated_at: new Date().toISOString(),
+    updated_by: user.id,
+  }, { onConflict: 'from_currency,to_currency' });
   if (error) throw new Error(error.message);
 }

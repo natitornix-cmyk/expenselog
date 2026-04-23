@@ -59,13 +59,22 @@ export default function MembersSettings({ members, onChanged }) {
             key={m.id}
             className="bg-zinc-900 rounded-2xl border border-white/8 px-4 py-3.5 flex items-center justify-between"
           >
-            <span className="font-semibold text-zinc-200">{m.name}</span>
-            <button
-              onClick={() => handleDelete(m)}
-              className="text-xs text-red-500/50 hover:text-red-400 px-2.5 py-1.5 rounded-lg hover:bg-red-950/30 transition-colors"
-            >
-              ลบ
-            </button>
+            <div>
+              <span className="font-semibold text-zinc-200">{m.name}</span>
+              {m.user_id && (
+                <span className="text-[10px] text-zinc-600 ml-2 border border-white/8 px-1.5 py-0.5 rounded">มี account</span>
+              )}
+            </div>
+            {m.user_id ? (
+              <span className="text-xs text-zinc-700 px-2.5 py-1.5">—</span>
+            ) : (
+              <button
+                onClick={() => handleDelete(m)}
+                className="text-xs text-red-500/50 hover:text-red-400 px-2.5 py-1.5 rounded-lg hover:bg-red-950/30 transition-colors"
+              >
+                ลบ
+              </button>
+            )}
           </li>
         ))}
       </ul>

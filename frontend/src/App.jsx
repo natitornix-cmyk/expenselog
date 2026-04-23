@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './supabase';
-import { getMembers, getExpenses, getMyLink, deleteMyLink } from './api';
+import { getMembers, getExpenses, getMyProfile, updateMyNickname, getExchangeRates } from './api';
 import { calculateBalances } from './utils/balances';
 import LoginPage from './components/LoginPage';
 import MemberLinkPage from './components/MemberLinkPage';
@@ -17,14 +17,20 @@ const TABS = [
 ];
 
 export default function App() {
-  // undefined = still loading, null = no session/link
+  // undefined = still loading, null = no session/profile
   const [session, setSession] = useState(undefined);
-  const [myLink, setMyLink] = useState(undefined);
+  const [myProfile, setMyProfile] = useState(undefined);
 
   const [tab, setTab] = useState('add');
   const [members, setMembers] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [rates, setRates] = useState(null);
+
+  // Inline nickname edit state
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
 
   // Auth listener
   useEffect(() => {
@@ -37,14 +43,14 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Check member link whenever session changes
+  // Load profile whenever session changes
   useEffect(() => {
     if (session === undefined) return;
-    if (!session) { setMyLink(null); return; }
-    getMyLink().then(link => setMyLink(link ?? null));
+    if (!session) { setMyProfile(null); return; }
+    getMyProfile().then(profile => setMyProfile(profile ?? null));
   }, [session]);
 
-  const isReady = !!(session && myLink);
+  const isReady = !!(session && myProfile);
 
   const refreshMembers = useCallback(async () => {
     if (!session) return;
@@ -56,12 +62,18 @@ export default function App() {
     setExpenses(await getExpenses());
   }, [session]);
 
+  const refreshRates = useCallback(async () => {
+    if (!session) return;
+    setRates(await getExchangeRates());
+  }, [session]);
+
   useEffect(() => {
     if (isReady) {
       refreshMembers();
       refreshExpenses();
+      refreshRates();
     }
-  }, [isReady, refreshMembers, refreshExpenses]);
+  }, [isReady, refreshMembers, refreshExpenses, refreshRates]);
 
   const balances = useMemo(
     () => (members.length > 0 ? calculateBalances(members, expenses) : null),
@@ -72,12 +84,17 @@ export default function App() {
     await supabase.auth.signOut();
   }
 
-  async function handleChangeIdentity() {
-    await deleteMyLink();
-    setMyLink(null);
+  async function handleSaveName() {
+    if (!nameInput.trim()) return;
+    setNameSaving(true);
+    try {
+      await updateMyNickname(nameInput.trim());
+      setMyProfile(prev => ({ ...prev, name: nameInput.trim() }));
+      setEditingName(false);
+    } finally {
+      setNameSaving(false);
+    }
   }
-
-  const currentMemberName = members.find(m => m.id === myLink?.member_id)?.name;
 
   function handleEditExpense(expense) {
     setEditingExpense(expense);
@@ -90,7 +107,7 @@ export default function App() {
   }
 
   // Loading
-  if (session === undefined || (session && myLink === undefined)) {
+  if (session === undefined || (session && myProfile === undefined)) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <p className="text-zinc-600 text-sm">กำลังโหลด...</p>
@@ -100,37 +117,57 @@ export default function App() {
 
   if (!session) return <LoginPage />;
 
-  if (!myLink) {
+  if (!myProfile) {
     return (
       <MemberLinkPage
         session={session}
-        onLinked={() => getMyLink().then(link => setMyLink(link ?? null))}
+        onLinked={() => getMyProfile().then(p => setMyProfile(p ?? null))}
       />
     );
   }
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col max-w-lg mx-auto">
-      <header className="bg-gradient-to-r from-zinc-900 to-zinc-800 px-4 py-4 border-b border-amber-400/20 flex justify-between items-start">
+      <header className="bg-gradient-to-r from-zinc-900 to-zinc-800 px-4 py-3.5 border-b border-amber-400/20 flex justify-between items-center">
         <div>
           <h1 className="text-lg font-black text-zinc-100 tracking-tight">
             From Street to Strait
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">บันทึกค่าใช้จ่ายกลุ่ม</p>
         </div>
-        <div className="flex flex-col items-end gap-1 mt-0.5">
-          {currentMemberName && (
+
+        <div className="flex flex-col items-end gap-1">
+          {editingName ? (
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-zinc-400">
-                คุณคือ: <span className="font-semibold text-zinc-200">{currentMemberName}</span>
-              </span>
+              <input
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                className="bg-zinc-800 border border-amber-400/40 text-zinc-100 rounded-lg px-2 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-amber-400/50"
+                autoFocus
+              />
               <button
-                onClick={handleChangeIdentity}
-                className="text-xs text-zinc-600 hover:text-amber-400 transition-colors border border-white/10 hover:border-amber-400/30 px-1.5 py-0.5 rounded-md"
+                onClick={handleSaveName}
+                disabled={nameSaving || !nameInput.trim()}
+                className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-40"
               >
-                เปลี่ยน
+                {nameSaving ? '...' : 'บันทึก'}
+              </button>
+              <button
+                onClick={() => setEditingName(false)}
+                className="text-xs text-zinc-600 hover:text-zinc-400"
+              >
+                ✕
               </button>
             </div>
+          ) : (
+            <button
+              onClick={() => { setNameInput(myProfile.name); setEditingName(true); }}
+              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors group"
+            >
+              <span className="font-semibold">{myProfile.name}</span>
+              <span className="text-zinc-700 group-hover:text-zinc-500 text-[10px]">✏️</span>
+            </button>
           )}
           <button
             onClick={handleSignOut}
@@ -150,6 +187,7 @@ export default function App() {
             members={members}
             editingExpense={editingExpense}
             currentUserId={session.user.id}
+            myName={myProfile.name}
             onSaved={() => {
               setEditingExpense(null);
               refreshExpenses();
@@ -162,13 +200,15 @@ export default function App() {
           <ExpenseList
             expenses={expenses}
             currentUserId={session.user.id}
-            currentMemberId={myLink.member_id}
+            currentMemberId={myProfile.id}
             onDeleted={refreshExpenses}
             onEdit={handleEditExpense}
             onFlagged={refreshExpenses}
           />
         )}
-        {tab === 'balances' && <BalanceSummary data={balances} />}
+        {tab === 'balances' && (
+          <BalanceSummary data={balances} rates={rates} onRatesChanged={refreshRates} />
+        )}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-zinc-900 border-t border-white/8 flex">
