@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getMembers, getClaimedMemberIds, linkUserToMember } from '../api';
+import { getMembers, getClaimedMemberIds, linkUserToMember, addMember } from '../api';
 
 export default function MemberLinkPage({ session, onLinked }) {
   const [members, setMembers] = useState([]);
@@ -7,6 +7,8 @@ export default function MemberLinkPage({ session, onLinked }) {
   const [selected, setSelected] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [newName, setNewName] = useState('');
+  const [addingNew, setAddingNew] = useState(false);
 
   useEffect(() => {
     Promise.all([getMembers(), getClaimedMemberIds()]).then(([mems, claimed]) => {
@@ -25,6 +27,20 @@ export default function MemberLinkPage({ session, onLinked }) {
     } catch (err) {
       setError(err.message);
       setSaving(false);
+    }
+  }
+
+  async function handleAddAndLink() {
+    if (!newName.trim()) return;
+    setAddingNew(true);
+    setError('');
+    try {
+      const member = await addMember(newName.trim());
+      await linkUserToMember(session.user.id, member.id);
+      onLinked();
+    } catch (err) {
+      setError(err.message);
+      setAddingNew(false);
     }
   }
 
@@ -61,6 +77,26 @@ export default function MemberLinkPage({ session, onLinked }) {
               </button>
             );
           })}
+        </div>
+
+        <div className="border-t border-white/8 pt-4 space-y-2">
+          <p className="text-xs text-zinc-600 text-center">ไม่เจอชื่อคุณ? เพิ่มใหม่ได้เลย</p>
+          <div className="flex gap-2">
+            <input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddAndLink()}
+              placeholder="ใส่ชื่อของคุณ"
+              className="flex-1 bg-zinc-800 border border-white/10 text-zinc-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 placeholder:text-zinc-600"
+            />
+            <button
+              onClick={handleAddAndLink}
+              disabled={!newName.trim() || addingNew}
+              className="bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors"
+            >
+              {addingNew ? '...' : 'เพิ่ม'}
+            </button>
+          </div>
         </div>
 
         {error && (

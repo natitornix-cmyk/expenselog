@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './supabase';
-import { getMembers, getExpenses, getMyLink } from './api';
+import { getMembers, getExpenses, getMyLink, deleteMyLink } from './api';
 import { calculateBalances } from './utils/balances';
 import LoginPage from './components/LoginPage';
 import MemberLinkPage from './components/MemberLinkPage';
@@ -72,6 +72,13 @@ export default function App() {
     await supabase.auth.signOut();
   }
 
+  async function handleChangeIdentity() {
+    await deleteMyLink();
+    setMyLink(null);
+  }
+
+  const currentMemberName = members.find(m => m.id === myLink?.member_id)?.name;
+
   function handleEditExpense(expense) {
     setEditingExpense(expense);
     setTab('add');
@@ -111,12 +118,27 @@ export default function App() {
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">บันทึกค่าใช้จ่ายกลุ่ม</p>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors mt-1"
-        >
-          ออกจากระบบ
-        </button>
+        <div className="flex flex-col items-end gap-1 mt-0.5">
+          {currentMemberName && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-zinc-400">
+                คุณคือ: <span className="font-semibold text-zinc-200">{currentMemberName}</span>
+              </span>
+              <button
+                onClick={handleChangeIdentity}
+                className="text-xs text-zinc-600 hover:text-amber-400 transition-colors border border-white/10 hover:border-amber-400/30 px-1.5 py-0.5 rounded-md"
+              >
+                เปลี่ยน
+              </button>
+            </div>
+          )}
+          <button
+            onClick={handleSignOut}
+            className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+          >
+            ออกจากระบบ
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto pb-20">

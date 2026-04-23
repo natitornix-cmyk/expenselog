@@ -54,6 +54,12 @@ export async function linkUserToMember(userId, memberId) {
   }
 }
 
+export async function deleteMyLink() {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('user_links').delete().eq('user_id', user.id);
+  if (error) throw new Error(error.message);
+}
+
 // ─── Expenses ─────────────────────────────────────────────────────────────────
 
 export async function getExpenses() {
