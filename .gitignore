@@ -2,4 +2,6 @@ node_modules/
 backend/node_modules/
 frontend/node_modules/
 backend/expenses.db
+backend/expenses.db-shm
+backend/expenses.db-wal
 frontend/dist/
