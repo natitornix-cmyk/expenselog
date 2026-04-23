@@ -56,7 +56,14 @@ export default function ProfileDrawer({ session, myProfile, onNicknameSaved, onS
     setDeleteError('');
     try {
       await deleteMyAccount(myProfile.id);
-      onDeleted();
+      await supabase.auth.signOut();
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: { prompt: 'select_account' },
+        },
+      });
     } catch (err) {
       setDeleteError(err.message);
       setDeleting(false);
