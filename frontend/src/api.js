@@ -36,9 +36,11 @@ export async function deleteMember(id) {
 export async function getMyProfile() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  const avatarUrl = user.user_metadata?.avatar_url ?? null;
+  await supabase.from('members').update({ avatar_url: avatarUrl }).eq('user_id', user.id);
   const { data, error } = await supabase
     .from('members')
-    .select('id, name, user_id')
+    .select('id, name, user_id, avatar_url')
     .eq('user_id', user.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -47,9 +49,10 @@ export async function getMyProfile() {
 
 export async function createMyProfile(nickname) {
   const { data: { user } } = await supabase.auth.getUser();
+  const avatarUrl = user.user_metadata?.avatar_url ?? null;
   const { data, error } = await supabase
     .from('members')
-    .insert({ name: nickname.trim(), user_id: user.id })
+    .insert({ name: nickname.trim(), user_id: user.id, avatar_url: avatarUrl })
     .select()
     .single();
   if (error) {

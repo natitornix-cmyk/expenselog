@@ -2,6 +2,25 @@ import { useState } from 'react';
 import { upsertExchangeRate } from '../api';
 import { convertAmount, formatTHB, formatMYR, formatSGD } from '../utils/currency';
 
+function Avatar({ url, name, isCreditor, isDebtor }) {
+  const ring = isCreditor ? 'ring-emerald-500/50' : isDebtor ? 'ring-red-500/50' : 'ring-zinc-600/50';
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        referrerPolicy="no-referrer"
+        className={`w-8 h-8 rounded-full object-cover ring-2 ${ring} shrink-0`}
+      />
+    );
+  }
+  return (
+    <div className={`w-8 h-8 rounded-full bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-xs font-black text-amber-300 shrink-0 ring-2 ${ring}`}>
+      {name?.[0]?.toUpperCase() ?? '?'}
+    </div>
+  );
+}
+
 export default function BalanceSummary({ data, rates, onRatesChanged }) {
   const [editingRates, setEditingRates] = useState(false);
   const [myrInput, setMyrInput] = useState('');
@@ -59,10 +78,7 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
               key={b.id}
               className="bg-zinc-900 rounded-2xl border border-white/8 px-4 py-3.5 flex items-center gap-3"
             >
-              {/* Dot */}
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                isCreditor ? 'bg-emerald-400' : isDebtor ? 'bg-red-400' : 'bg-zinc-600'
-              }`} />
+              <Avatar url={b.avatar_url} name={b.name} isCreditor={isCreditor} isDebtor={isDebtor} />
 
               {/* Name + badge */}
               <div className="flex-1 min-w-0">
@@ -109,17 +125,23 @@ export default function BalanceSummary({ data, rates, onRatesChanged }) {
                   className="bg-zinc-900 rounded-2xl border border-white/8 px-4 py-4 flex items-center gap-3"
                 >
                   {/* Debtor */}
-                  <div className="min-w-0">
-                    <p className="font-bold text-red-400 truncate">{s.from}</p>
-                    <p className="text-xs text-red-600 mt-0.5">ลูกหนี้</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar url={s.from_avatar} name={s.from} isDebtor />
+                    <div>
+                      <p className="font-bold text-red-400 truncate">{s.from}</p>
+                      <p className="text-xs text-red-600 mt-0.5">ลูกหนี้</p>
+                    </div>
                   </div>
 
                   <span className="text-amber-400 text-base flex-1 text-center">→</span>
 
                   {/* Creditor */}
-                  <div className="min-w-0 text-right">
-                    <p className="font-bold text-emerald-400 truncate">{s.to}</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">เจ้าหนี้</p>
+                  <div className="flex items-center gap-2 min-w-0 flex-row-reverse text-right">
+                    <Avatar url={s.to_avatar} name={s.to} isCreditor />
+                    <div>
+                      <p className="font-bold text-emerald-400 truncate">{s.to}</p>
+                      <p className="text-xs text-emerald-600 mt-0.5">เจ้าหนี้</p>
+                    </div>
                   </div>
 
                   {/* Amount */}

@@ -139,3 +139,10 @@ ALTER TABLE expenses ADD COLUMN IF NOT EXISTS
 DROP POLICY IF EXISTS "members_delete" ON members;
 CREATE POLICY "members_delete" ON members FOR DELETE TO authenticated
   USING (user_id IS NULL OR user_id = auth.uid());
+
+-- =====================================================================
+-- Migration: Add avatar_url to members for profile picture display
+-- Run this block in Supabase SQL Editor
+-- =====================================================================
+
+ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url text;

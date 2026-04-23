@@ -32,13 +32,18 @@ export function calculateBalances(members, expenses, rates = {}) {
     .map(m => ({ ...m, amount: balance[m.id] }))
     .sort((a, b) => b.amount - a.amount);
 
+  const avatarByName = {};
+  for (const m of members) avatarByName[m.name] = m.avatar_url ?? null;
+
   const settlements = [];
   let i = 0, j = 0;
   while (i < debtors.length && j < creditors.length) {
     const amount = Math.min(debtors[i].amount, creditors[j].amount);
     settlements.push({
       from: debtors[i].name,
+      from_avatar: avatarByName[debtors[i].name] ?? null,
       to: creditors[j].name,
+      to_avatar: avatarByName[creditors[j].name] ?? null,
       amount: Math.round(amount * 100) / 100,
     });
     debtors[i].amount -= amount;
@@ -51,6 +56,7 @@ export function calculateBalances(members, expenses, rates = {}) {
     balances: members.map(m => ({
       id: m.id,
       name: m.name,
+      avatar_url: m.avatar_url ?? null,
       net: Math.round(balance[m.id] * 100) / 100,
     })),
     settlements,
